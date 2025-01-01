@@ -1,9 +1,10 @@
 import numpy as np
 import pyaudio
+from multiprocessing import Process, Queue
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer
 
 class AudioProcessor:
-    def __init__(self,sample_rate=48000, buffer_size=4096, channels=1):
+    def __init__(self, sample_rate=48000, buffer_size=4096, channels=1):
         self.ui = None
         self.sample_rate = sample_rate
         self.buffer_size = buffer_size
@@ -11,18 +12,35 @@ class AudioProcessor:
         self.stream = None
         self.pyaudio = pyaudio.PyAudio()
         self.worker = None
-
+        self.worker_interval = round(self.sample_rate / self.buffer_size)
+        self.queue = Queue()
+        # print("queue init")
 
     def start(self, ui):
         self.ui = ui
         # print("start (creating audio worker)")
-        self.worker = AudioWorker(self.ui, self.sample_rate, self.buffer_size, channels=self.channels)
+        self.worker = AudioWorker(self.queue, self.ui, self.sample_rate, self.buffer_size, channels=self.channels)
 
     def start_audio_worker(self):
         """Start the audio worker thread."""
         # print("start audio worker")
         self.worker.start()
-        self.worker.fft_data_signal.connect(self.ui.update_display_fft_data)  # Connect signal to update_strobe method
+        # print("start worker")
+        # self.worker.fft_data_signal.connect(self.ui.update_display_fft_data)  # Connect signal to update_strobe method
+
+        # Use a QTimer to periodically check for new results from the queue
+        self.check_worker()
+
+    def check_worker(self):
+        # print("check worker")
+        # Check if the queue has any new data from the worker process
+        if not self.queue.empty():
+            # print("que has data! ^^")
+            result = self.queue.get()  # Get data from the queue
+            self.ui.update_display_fft_data(result)
+
+        # Re-run this method to check the queue every 100ms
+        QTimer.singleShot(round(self.sample_rate / self.buffer_size), self.check_worker)
 
     def pause_audio_worker(self):
         # print("pause audio worker")
@@ -39,10 +57,12 @@ class AudioProcessor:
 
 # Worker class that processes audio data and calculates FFT
 class AudioWorker(QThread):
-    fft_data_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)  # Signal to send frequency and magnitude data
+    # fft_data_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)  # Signal to send frequency and magnitude data
+    result = (np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)
 
-    def __init__(self, ui, sample_rate=48000, buffer_size=1024, channels=1):
+    def __init__(self, queue, ui, sample_rate=48000, buffer_size=1024, channels=1):
         super().__init__()
+        self.queue = queue
         self.ui = ui
         self.sample_rate = sample_rate
         self.buffer_size = buffer_size
@@ -104,7 +124,9 @@ class AudioWorker(QThread):
                 peak_magnitudes = positive_magnitudes[peaks_idx]
 
                 # Emit the frequency and magnitude data to the UI thread
-                self.fft_data_signal.emit(positive_frequencies, positive_magnitudes, peaks_idx, peak_frequencies, peak_magnitudes)  # Emit signal
+                # self.fft_data_signal.emit(positive_frequencies, positive_magnitudes, peaks_idx, peak_frequencies, peak_magnitudes)  # Emit signal
+                result = (positive_frequencies, positive_magnitudes, peaks_idx, peak_frequencies, peak_magnitudes)
+                self.queue.put(result)
 
             except Exception as e:
                 print(f"Error while processing audio data: {e}")

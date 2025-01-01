@@ -41,14 +41,16 @@ class TunerWindow(QWidget):
         event.accept()  # Accept the close event and close the window
 
     def paintEvent(self, event):
+        # print("updating ui")
         self.spectrum_container.update()
         self.strobe_container.update()
         pass
 
-    def update_display_fft_data(self, positive_frequencies, positive_magnitudes, peaks_idx, peak_frequencies, peak_magnitudes):
+    def update_display_fft_data(self, data):
         """Update the strobe effect with the FFT data."""
         # print(f"freq {positive_frequencies}")
         # print(f"peaks {peak_frequencies}")
+        positive_frequencies, positive_magnitudes, peaks_idx, peak_frequencies, peak_magnitudes = data
         self.spectrum_container.set_spectrum_data(positive_frequencies, positive_magnitudes, peaks_idx)
         self.strobe_container.set_strobe_data(peak_frequencies, peak_magnitudes)
         
