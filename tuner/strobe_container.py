@@ -7,22 +7,21 @@ import tuner.utils as utility
 from tuner.strobe_wheel import StrobeWheel
 
 class StrobeContainer(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, strobe_count=3):
         super().__init__(parent)
         self.setAutoFillBackground(False)
-        self.strobe_count = 3  # Example: Number of strobes
+        self.strobe_count = strobe_count
         self.strobe_height = 0  # Will be updated in paintEvent
         self.strobe_data = None # Holds strobe data (frequencies, magnitudes)
         self.strobe_wheels = None
-        
     
     def reset_strobe_wheels(self):
         self.strobe_wheels = []
 
         for i in range(self.strobe_count):
-            self.strobe_wheels.append(StrobeWheel(self, i))
+            self.strobe_wheels.append(StrobeWheel(self, i, target_frequency=440))
 
-        strobe_layout = QVBoxLayout()
+        strobe_layout = QVBoxLayout(self)
         
         for wheel in self.strobe_wheels:
             strobe_layout.addWidget(wheel)
@@ -48,7 +47,7 @@ class StrobeContainer(QWidget):
             return  # No data to render
 
         # Calculate strobe height based on the widget height
-        self.strobe_height = self.height() // self.strobe_count
+        self.strobe_height = round(self.height() / self.strobe_count)
 
         if len(self.strobe_data) == 0:
             print(f"strobe data size 0. aborting...")
@@ -56,7 +55,14 @@ class StrobeContainer(QWidget):
 
         for i, (frequency, magnitude) in enumerate(self.strobe_data[-self.strobe_count:]):
             # print(f"setting wheel #{i} data: {round(frequency, 2)} Hz @{round(1 - magnitude, 1)}dB")
-            self.strobe_wheels[i].set_wheel_data(i, frequency, magnitude)
+            wheel = self.strobe_wheels[i]
+            wheel.set_wheel_data(i, frequency, magnitude, wheel.auto_target)
+        
+    def set_target(self, target_midi):
+        for i, (frequency, magnitude) in enumerate(self.strobe_data[-self.strobe_count:]):
+            f = utility.midi_to_frequency(target_midi)
+            self.strobe_wheels[i].set_wheel_data(i, frequency, magnitude, auto_target=False, target_frequency=f)
+            # print(f"setting strobe #{i} target: {round(f, 2)} Hz")
 
     def draw_strobe_old(self, painter, index, frequency, magnitude):
         """Draw a single strobe effect based on frequency and magnitude."""

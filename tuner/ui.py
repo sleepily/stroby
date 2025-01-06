@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPu
 from tuner.strobe_container import StrobeContainer
 from tuner.spectrum_container import SpectrumContainer
 
+import tuner.utils as utility
+
 class TunerWindow(QWidget):
     def __init__(self, tuner):
         super().__init__()
@@ -11,28 +13,49 @@ class TunerWindow(QWidget):
         self.setWindowTitle("stroby")
         self.setGeometry(0, 0, 720, 720)
 
-        self.spectrum_container = SpectrumContainer()
-        self.strobe_container = StrobeContainer()
+        self.desktop_container = QVBoxLayout()
 
-        self.tuning_button = QPushButton("Pause Tuning")
-        self.tuning_button.clicked.connect(self.tuner.toggle_tuning_input)
+        self.spectrum_container = SpectrumContainer()
+        self.strobe_container = StrobeContainer(strobe_count=3)
+
+        self.buffer_pause_button = QPushButton("Freeze Input")
+        self.buffer_pause_button.clicked.connect(self.tuner.toggle_input_freeze)
         self.buffer_larger_button = QPushButton("Buffer x2")
         self.buffer_larger_button.clicked.connect(self.tuner.buffer_increase)
         self.buffer_smaller_button = QPushButton("Buffer //2")
         self.buffer_smaller_button.clicked.connect(self.tuner.buffer_decrease)
 
-        layout = QVBoxLayout()
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.tuning_button)
-        button_layout.addWidget(self.buffer_larger_button)
-        button_layout.addWidget(self.buffer_smaller_button)
+        graphics_buttons_container = QHBoxLayout()
+        graphics_buttons_container.addWidget(self.buffer_pause_button)
+        graphics_buttons_container.addWidget(self.buffer_larger_button)
+        graphics_buttons_container.addWidget(self.buffer_smaller_button)
+
+        # TODO: break out, include octave scrolling
+        scale_buttons_panel = QHBoxLayout()
+        scale_buttons = []
+        for i in range(12):
+            button_midi = utility.frequency_to_midi(440) + i
+            button_text = utility.midi_to_note_name(button_midi)
+
+            is_sharp = '#' in button_text  # Simplified sharp check
+            button = QPushButton(button_text)
+            button.setStyleSheet(f"background-color: white; color: black;")
+
+            if is_sharp:
+                button.setStyleSheet(f"background-color: black; color: white;")
+            
+            button.clicked.connect(lambda _, midi=button_midi: self.strobe_container.set_target(midi))
+            scale_buttons.append(button)
+            scale_buttons_panel.addWidget(button)
 
         # strobe_layout = QVBoxLayout()
-        layout.addWidget(self.strobe_container)
-        layout.addWidget(self.spectrum_container)
-        layout.addLayout(button_layout)
+        self.desktop_container.addWidget(self.strobe_container)
+        self.desktop_container.addWidget(self.spectrum_container)
+        self.desktop_container.addLayout(scale_buttons_panel)
+        self.desktop_container.addLayout(graphics_buttons_container)
 
-        self.setLayout(layout)
+        # TODO: break out into separate function
+        self.setLayout(self.desktop_container)
     
     def closeEvent(self, event):
         """Handle window close event to stop the worker."""

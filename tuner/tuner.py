@@ -16,11 +16,11 @@ class Tuner:
         self.ui = TunerWindow(self)
         self.ui.show()
 
-        self.toggle_tuning_input(first_run=True) # start tuning
+        self.toggle_input_freeze(first_run=True) # start tuning
 
         sys.exit(self.app.exec())
 
-    def toggle_tuning_input(self, first_run=False):
+    def toggle_input_freeze(self, first_run=False):
         if first_run:
             self.is_running = True
             # print(f"start tuning logic")
@@ -35,13 +35,17 @@ class Tuner:
         # Toggle logic for starting/stopping tuning
         if self.is_running:
             self.audio_processor.unpause_audio_worker()
-            self.ui.tuning_button.setText("Pause Tuning")
+            self.ui.buffer_pause_button.setText("Freeze Input")
         else:
             self.audio_processor.pause_audio_worker()
-            self.ui.tuning_button.setText("Resume Tuning")
+            self.ui.buffer_pause_button.setText("Resume Input")
 
     def buffer_increase(self):
         self.audio_processor.worker.increase_buffer_size()
 
     def buffer_decrease(self):
         self.audio_processor.worker.decrease_buffer_size()
+    
+    def set_target(self, frequency=440):
+        if self.ui is not None:
+            self.ui.strobe_container.set_target(frequency)

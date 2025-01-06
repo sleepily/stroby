@@ -11,7 +11,7 @@ class SpectrumContainer(QWidget):
         self.strobe_height = 0  # Will be updated in paintEvent
         self.spectrum_data = None  # Holds strobe data (frequencies, magnitudes)
         self.spectrum_size = 0
-        self.zoom_range = QPoint(30, 5000)
+        self.zoom_range = QPoint(20, 4000)
         self.peaks_idk = None
 
     def set_spectrum_data(self, frequencies, magnitudes, peaks_idx):
@@ -62,6 +62,7 @@ class SpectrumContainer(QWidget):
             
             last_point = point
 
+    # TODO: retain max. magnitude for automated vertical scaling and peak hold visualization option  
     def calculate_spectrum_point(self, painter, index, frequency, magnitude):
         """Draw a single strobe effect based on frequency and magnitude."""
         # better_magnitude = np.log2(magnitude / 1000)

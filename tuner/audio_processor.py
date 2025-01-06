@@ -4,7 +4,7 @@ from multiprocessing import Process, Queue
 from PyQt6.QtCore import QThread, pyqtSignal, QTimer
 
 class AudioProcessor:
-    def __init__(self, sample_rate=48000, buffer_size=4096, channels=1):
+    def __init__(self, sample_rate=12000, buffer_size=4096, channels=1):
         self.ui = None
         self.sample_rate = sample_rate
         self.buffer_size = buffer_size
@@ -54,7 +54,7 @@ class AudioProcessor:
         # print("stop audio worker")
         self.worker.terminate_stream()
 
-
+# TODO: rewrite audio worker
 # Worker class that processes audio data and calculates FFT
 class AudioWorker(QThread):
     # fft_data_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)  # Signal to send frequency and magnitude data
