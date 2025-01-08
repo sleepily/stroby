@@ -11,25 +11,26 @@ class SpectrumContainer(QWidget):
         self.strobe_height = 0  # Will be updated in paintEvent
         self.spectrum_data = None  # Holds strobe data (frequencies, magnitudes)
         self.spectrum_size = 0
-        self.zoom_range = QPoint(20, 4000)
-        self.peaks_idk = None
+        self.zoom_range = QPoint(36, 4000)
+        self.peaks_idx = None
+
+        self.max = 0
 
     def set_spectrum_data(self, frequencies, magnitudes, peaks_idx):
         """Set the data for the strobes and trigger a repaint."""
-        # print(f"spectrum {frequencies}")
 
         self.spectrum_data = list(zip(frequencies, magnitudes))  # Combine frequencies and magnitudes
         self.highest_frequency = frequencies[len(frequencies) - 1]
-        self.peaks_idk = peaks_idx
+        self.peaks_idx = peaks_idx
+        self.max = max(magnitudes)
         self.update()  # Trigger a repaint
 
     def paintEvent(self, event):
         if self.spectrum_data == None:
-            # print("waiting for spectrum data...")
             return  # No data to render
 
         if len(self.spectrum_data) == 0:
-            print("NO SPECTRUM DATA! (SIZE 0)")
+            print("warning: spectrum: FFT data empty.")
             return  # No data to render
 
         # Calculate strobe height based on the widget height
@@ -43,11 +44,12 @@ class SpectrumContainer(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Clear the background
-        painter.fillRect(self.rect(), QColor(0, 0, 0))
+        painter.eraseRect(self.rect())
 
         self.spectrum_point_pairs = []
         last_point = None
-        for i, (frequency, magnitude) in enumerate(self.spectrum_data):
+        max_flag = False
+        for i, (frequency, magnitude) in enumerate(self.spectrum_data):                
             point = self.calculate_spectrum_point(painter, i, frequency, magnitude)
 
             if last_point == None:
@@ -65,14 +67,10 @@ class SpectrumContainer(QWidget):
     # TODO: retain max. magnitude for automated vertical scaling and peak hold visualization option  
     def calculate_spectrum_point(self, painter, index, frequency, magnitude):
         """Draw a single strobe effect based on frequency and magnitude."""
-        # better_magnitude = np.log2(magnitude / 1000)
 
-        # Calculate strobe's vertical position (based on the index)
-        band_x = int(np.interp(frequency, [self.zoom_range.x(), self.zoom_range.y()], [0, self.width()]))
-        band_y = int(np.interp(magnitude, [0, 10000], [self.height(), 0]))
+        band_x = int(np.interp(np.log10(frequency), [0, 3.8], [0, self.width()]))
+        band_y = int(np.interp(magnitude, [0, self.max], [self.height(), 0]))
     
-        # print(f"x{band_x} y{band_y}")
-
         # Calculate width and position (based on frequency)
         band_point = QPoint(band_x, band_y)
 

@@ -14,28 +14,20 @@ class AudioProcessor:
         self.worker = None
         self.worker_interval = round(self.sample_rate / self.buffer_size)
         self.queue = Queue()
-        # print("queue init")
 
     def start(self, ui):
         self.ui = ui
-        # print("start (creating audio worker)")
         self.worker = AudioWorker(self.queue, self.ui, self.sample_rate, self.buffer_size, channels=self.channels)
 
     def start_audio_worker(self):
         """Start the audio worker thread."""
-        # print("start audio worker")
         self.worker.start()
-        # print("start worker")
-        # self.worker.fft_data_signal.connect(self.ui.update_display_fft_data)  # Connect signal to update_strobe method
-
         # Use a QTimer to periodically check for new results from the queue
         self.check_worker()
 
     def check_worker(self):
-        # print("check worker")
         # Check if the queue has any new data from the worker process
         if not self.queue.empty():
-            # print("que has data! ^^")
             result = self.queue.get()  # Get data from the queue
             self.ui.update_display_fft_data(result)
 
@@ -43,21 +35,17 @@ class AudioProcessor:
         QTimer.singleShot(round(self.sample_rate / self.buffer_size), self.check_worker)
 
     def pause_audio_worker(self):
-        # print("pause audio worker")
         self.worker.pause_stream()
 
     def unpause_audio_worker(self):
-        # print("unpause audio worker")
         self.worker.unpause_stream()
     
     def stop_audio_worker(self):
-        # print("stop audio worker")
         self.worker.terminate_stream()
 
 # TODO: rewrite audio worker
 # Worker class that processes audio data and calculates FFT
 class AudioWorker(QThread):
-    # fft_data_signal = pyqtSignal(np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)  # Signal to send frequency and magnitude data
     result = (np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray)
 
     def __init__(self, queue, ui, sample_rate=48000, buffer_size=1024, channels=1):
@@ -91,7 +79,7 @@ class AudioWorker(QThread):
             self.p = pyaudio.PyAudio()
 
         if self.running:
-            print(f"stream already created, not starting another.")
+            print(f"warning: stream already created, not starting another.")
             return
 
         self.stream = self.p.open(format=pyaudio.paInt16,
@@ -118,6 +106,8 @@ class AudioWorker(QThread):
                 positive_frequencies = frequencies[:len(frequencies) // 2]
                 positive_magnitudes = magnitudes[:len(magnitudes) // 2]
 
+                # positive_magnitudes[0] = 0
+
                 # Identify the peaks
                 peaks_idx = np.argsort(positive_magnitudes)[-self.max_fft_peaks:]  # Get top 5 peaks
                 peak_frequencies = positive_frequencies[peaks_idx]
@@ -129,7 +119,7 @@ class AudioWorker(QThread):
                 self.queue.put(result)
 
             except Exception as e:
-                print(f"Error while processing audio data: {e}")
+                print(f"error while processing audio data: {e}")
                 break
 
     def pause_stream(self):

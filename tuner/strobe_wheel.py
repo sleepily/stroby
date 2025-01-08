@@ -1,6 +1,7 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QGraphicsBlurEffect, QGraphicsColorizeEffect
 from PyQt6.QtCore import Qt, QTimer, QPoint, QPointF
-from PyQt6.QtGui import QPainter, QColor, QPixmap, QTransform
+from PyQt6.QtGui import QPainter, QColor, QPixmap, QTransform, QColor
+from numpy import interp
 import math
 
 import tuner.utils as utility
@@ -9,6 +10,8 @@ class StrobeWheel(QWidget):
     def __init__(self, parent=None, order=0, target_frequency=None, mode='auto'):
         super().__init__(parent)
         self.setAutoFillBackground(False)
+
+        self.tuner = parent.tuner
 
         self.order = order
         self.num_segments = (order + 1)  # Number of segments in the strobe wheel
@@ -28,6 +31,11 @@ class StrobeWheel(QWidget):
 
         self.auto_target = True
 
+        # Create and set the blur effect
+        self.blur_effect = QGraphicsBlurEffect()
+        self.blur_effect.setBlurRadius(0)  # Adjust the radius for the desired blur amount
+        self.setGraphicsEffect(self.blur_effect)
+
         if target_frequency is None:
             self.target_frequency = -1
         else:
@@ -43,12 +51,6 @@ class StrobeWheel(QWidget):
         self.label_layout.addWidget(self.note_label)
         self.label_layout.addWidget(self.frequency_label)
         self.label_layout.addWidget(self.delta_label)
-
-        # print(f"wheel width {self.width()}")
-        # print(f"wheel height {self.height()}")
-        # print(f"segment width {self.segment_width}")
-
-        # print(f"wheel #{self.order} init")
 
     def create_segment_texture(self, width, height, antialiasing=True):
         self.num_segments = (self.order + 1)  # Number of segments in the strobe wheel
@@ -66,18 +68,52 @@ class StrobeWheel(QWidget):
         width = pixmap.width()
         height = pixmap.height()
 
+        colors_tune = [QColor(0, 255, 0), QColor(0, 20, 0)]
+        colors_detune = [QColor(220, 220, 0), QColor(16, 20, 0)]
+        colors_noise = [QColor(128, 128, 0), QColor(16, 20, 0)]
+
+        deviation = abs(self.midi_delta) / 100
+        factor = int(interp(deviation, [1, 0], [0, 100]))
+
+        if deviation >= 0.5:
+            foreground_color = colors_noise[0]
+            background_color = colors_noise[1]
+        else:
+            foreground_color = self.lerp_color(deviation, colors_tune[0], colors_detune[0])
+            background_color = self.lerp_color(deviation, colors_tune[1], colors_detune[1])
+            
+
         # Paint the left half green
-        painter.fillRect(0, 0, width // 2, height, QColor(0, 255, 0))  # Green
+        painter.fillRect(0, 0, width // 2, height, QColor(foreground_color))
         
         # Paint the right half black
-        painter.fillRect(width // 2, 0, width // 2, height, QColor(0, 0, 0))  # Black
+        painter.fillRect(width // 2, 0, width // 2, height, QColor(background_color))
 
         # End the painting
         painter.end()
 
         return pixmap
     
-    def repeat_segment_texture_on_strobe(self, strobe_width, segment_texture):
+    def lerp_color(self, t, color1, color2):
+        """
+        Interpolates between two colors.
+        
+        :param color1: QColor, the starting color
+        :param color2: QColor, the target color
+        :param t: float, interpolation factor (0.0 to 1.0)
+        :return: QColor, the interpolated color
+        """
+        if not (0.0 <= t <= 1.0):
+            raise ValueError("Interpolation factor t must be between 0.0 and 1.0")
+
+        r = color1.red() * (1 - t) + color2.red() * t
+        g = color1.green() * (1 - t) + color2.green() * t
+        b = color1.blue() * (1 - t) + color2.blue() * t
+        a = color1.alpha() * (1 - t) + color2.alpha() * t
+
+        return QColor(int(r), int(g), int(b), int(a))
+    
+    def create_strobe_texture(self, strobe_width, segment_texture):
         # Create a QPixmap that will hold the full strobe texture (width x height)
         strobe_texture = QPixmap(strobe_width + segment_texture.width(), segment_texture.height())
 
@@ -119,6 +155,9 @@ class StrobeWheel(QWidget):
 
         self.midi_delta = self.midi - self.midi_target
 
+        radius = interp(abs(self.midi_delta), [0, 1], [4, 8])
+        self.blur_effect.setBlurRadius(radius)  # Adjust the radius for the desired blur amount
+
         self.set_label_texts()
     
     def set_label_texts(self):
@@ -126,29 +165,25 @@ class StrobeWheel(QWidget):
         self.frequency_label.text = f"{round(self.frequency, 2)}"
         self.delta_label.text = f"{round(self.midi_delta, 2)}"
 
-        # print(f"{self.note_label.text} @{self.frequency_label.text} {self.delta_label.text}")
 
     def paintEvent(self, event):
-        # print(f"strobe {self.order} paintEvent")
         painter = QPainter(self)
+        painter.eraseRect(self.rect())
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Clear the background with black color
-        painter.fillRect(self.rect(), QColor(100, 100, 100))
-
-        # Calculate the center of the widget (strobe wheel center)
-        # center = self.rect().center()
-        # radius = min(self.width(), self.height()) // 3  # Radius of the strobe wheel
 
         if self.midi_delta is None:
             self.label_layout.update()
             return
+        
+        speed_scale = 1000 / self.tuner.audio_processor.buffer_size
 
-        self.strobe_xoffset += self.midi_delta * self.strobe_max_speed
+        self.strobe_xoffset += self.midi_delta * self.strobe_max_speed * speed_scale
         self.strobe_xoffset = round(self.strobe_xoffset % self.segment_width)
         self.segment_texture = self.create_segment_texture(self.segment_width, self.height())  # Size of the segment texture
-        self.strobe_texture = self.repeat_segment_texture_on_strobe(self.width(), self.segment_texture)
+        self.strobe_texture = self.create_strobe_texture(self.width(), self.segment_texture)
         
+        self.setGraphicsEffect(self.blur_effect)
+
         transform = QTransform().translate(self.strobe_xoffset - self.segment_width, 0)
         painter.setTransform(transform)
         painter.drawPixmap(0, 0, self.strobe_texture)

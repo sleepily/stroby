@@ -2,6 +2,7 @@ import sys
 from PyQt6.QtWidgets import QApplication
 from tuner.audio_processor import AudioProcessor
 from tuner.ui import TunerWindow
+import tuner.utils as utility
 
 class Tuner:
     def __init__(self):
@@ -23,14 +24,12 @@ class Tuner:
     def toggle_input_freeze(self, first_run=False):
         if first_run:
             self.is_running = True
-            # print(f"start tuning logic")
             self.audio_processor.start(self.ui)
             self.audio_processor.start_audio_worker()
             self.ui.strobe_container.reset_strobe_wheels()
             return
         else:
             self.is_running = not self.is_running
-            # print(f"toggle tuning logic: {self.is_running}")
 
         # Toggle logic for starting/stopping tuning
         if self.is_running:
@@ -46,6 +45,7 @@ class Tuner:
     def buffer_decrease(self):
         self.audio_processor.worker.decrease_buffer_size()
     
-    def set_target(self, frequency=440):
+    def set_target(self, midi=69):
         if self.ui is not None:
-            self.ui.strobe_container.set_target(frequency)
+            self.ui.strobe_container.set_target_midi(midi)
+            self.ui.strobe_settings.note_wheel_widget.label.setText(utility.midi_to_note_name(midi))

@@ -25,7 +25,7 @@ def frequency_to_midi_with_cents(frequency):
 def frequency_to_cents(f1, f2):
     """Convert the frequency difference between two notes into cents."""
     if f1 is None or f2 is None:
-        return 0
+        return None
 
     ratio = f2 / f1
     cents = 1200 * np.log2(ratio)
@@ -40,9 +40,15 @@ def midi_to_note_name(midi_number):
     octave = round(midi_number // 12) - 1
     return f"{notes[round(midi_number) % 12]}{octave}" if octave >= 0 else ""
 
+
+def semitone_to_midi(semitones, octave):
+    """Convert note to its MIDI number, where A4 is semitones=0 octave=4."""
+
+    octave_midi = (octave + 1) * 12
+    return octave_midi + semitones
+
 def midi_to_frequency(midi_number=69+12):
     if midi_number <= 0:
-        return 0
+        return None
     frequency = A4_FREQUENCY * 2 ** ((midi_number - 69) / 12)
-    # print(frequency)
     return frequency
