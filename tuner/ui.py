@@ -42,7 +42,7 @@ class TunerWindow(QWidget):
         self.desktop_container.addWidget(self.strobe_container)
         self.desktop_container.addWidget(self.spectrum_container)
         self.desktop_container.addWidget(self.strobe_settings)
-        self.desktop_container.addLayout(graphics_buttons_container)
+        self.desktop_container.addLayout(graphics_buttons_container) #TODO: refactor 
 
         # TODO: break out into separate function
         self.setLayout(self.desktop_container)
