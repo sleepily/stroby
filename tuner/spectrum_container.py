@@ -68,7 +68,11 @@ class SpectrumContainer(QWidget):
     def calculate_spectrum_point(self, painter, index, frequency, magnitude):
         """Draw a single strobe effect based on frequency and magnitude."""
 
-        band_x = int(np.interp(np.log10(frequency), [0, 3.8], [0, self.width()]))
+        if frequency <= 0.0:
+            band_x = -1
+        else:
+            band_x = int(np.interp(np.log10(frequency), [0, 3.8], [0, self.width()]))
+
         band_y = int(np.interp(magnitude, [0, self.max], [self.height(), 0]))
     
         # Calculate width and position (based on frequency)
