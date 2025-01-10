@@ -5,7 +5,7 @@
 
 note: since stroby is still in early stages of development, the pitch detection accuracy is currently limited by the FFT resolution and thus the audio buffer size. this will be fixed in a near future update.
 
-## run source
+## debug source
 
 1. clone repo  
 2. set up a virtual environment for python
